@@ -1,0 +1,5 @@
+{
+	"dependencies": {
+		"@inkandswitch/patchwork-pkg-base": "0.0.27"
+	}
+}

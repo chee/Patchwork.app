@@ -1,0 +1,22 @@
+lockfileVersion: '9.0'
+
+settings:
+  autoInstallPeers: true
+  excludeLinksFromLockfile: false
+
+importers:
+
+  .:
+    dependencies:
+      '@inkandswitch/patchwork-pkg-base':
+        specifier: 0.0.27
+        version: 0.0.27
+
+packages:
+
+  '@inkandswitch/patchwork-pkg-base@0.0.27':
+    resolution: {integrity: sha512-213GtBgBMpwKnRlN6BAZc9UwYWDWmpqbXb0EbEy2v/MRead/TvPBistd07CsXJjsXhUW52AodM1yyVbbsY+oNA==}
+
+snapshots:
+
+  '@inkandswitch/patchwork-pkg-base@0.0.27': {}

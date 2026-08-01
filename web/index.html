@@ -1,0 +1,51 @@
+<!doctype html>
+<html>
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Patchwork</title>
+  <link rel="icon" type="image/svg+xml" href="/patchwork.svg" />
+  <!-- Patchwork_CONFIG -->
+  <style>
+    body {
+      font: 14px/1.5 ui-monospace, monospace;
+      margin: 1rem;
+    }
+
+    .ok {
+      color: green;
+    }
+
+    .bad {
+      color: crimson;
+    }
+  </style>
+</head>
+
+<body>
+  <h1>patchwork</h1>
+  <section id="account-gate" hidden>
+    <p>enter your account url</p>
+    <form id="account-form">
+      <input id="account-input" placeholder="account:you/YourAccountDocumentId" size="44" autofocus />
+      <button>save</button>
+    </form>
+    <p id="account-error" class="bad"></p>
+  </section>
+  <dl id="status">
+    <dt>subduction</dt>
+    <dd id="connection">connecting…</dd>
+    <dt>peers</dt>
+    <dd id="peers">—</dd>
+    <dt>repo</dt>
+    <dd id="repo-state">booting…</dd>
+    <dt>account</dt>
+    <dd id="account">—</dd>
+    <dt>frame</dt>
+    <dd id="frame">—</dd>
+  </dl>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+
+</html>

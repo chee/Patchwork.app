@@ -1,0 +1,14 @@
+.DS_Store
+
+node_modules/
+web/dist/
+PatchworkWeb.bundle/
+
+server-rs/target/
+PatchworkServerKit/Artifacts/
+
+.build/
+DerivedData/
+*.xcuserdatad/
+xcuserdata/
+*.xcworkspace/xcshareddata/IDEWorkspaceChecks.plist
