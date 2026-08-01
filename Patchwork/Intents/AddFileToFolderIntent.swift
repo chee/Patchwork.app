@@ -8,10 +8,10 @@ struct AddFileToFolderIntent: AppIntent {
     )
 
     @Parameter(
-        title: "Folder URL",
-        description: "The automerge: URL of the folder document. Leave empty to use your account's root folder."
+        title: "Folder",
+        description: "The folder to add to — pick a top-level folder or search by an automerge: URL. Leave empty to use the default shortcut folder, then your account's root folder."
     )
-    var folderUrl: String?
+    var folder: FolderEntity?
 
     @Parameter(title: "File")
     var file: IntentFile
@@ -23,9 +23,6 @@ struct AddFileToFolderIntent: AppIntent {
     var name: String?
 
     func perform() async throws -> some IntentResult & ReturnsValue<String> {
-        if let folderUrl, !folderUrl.isEmpty, !folderUrl.hasPrefix("automerge:") {
-            throw PatchworkIntentError.javaScript("Folder URL must start with automerge:")
-        }
         let filename = name ?? file.filename
         let mimeType = file.type?.preferredMIMEType ?? "application/octet-stream"
         let result = try await AppModel.shared.runJS(
@@ -33,7 +30,7 @@ struct AddFileToFolderIntent: AppIntent {
             return await window.Patchwork.addFileToFolder(folderUrl || undefined, name, base64, mimeType);
             """,
             arguments: [
-                "folderUrl": folderUrl ?? "",
+                "folderUrl": folder?.id ?? "",
                 "name": filename,
                 "base64": file.data.base64EncodedString(),
                 "mimeType": mimeType,

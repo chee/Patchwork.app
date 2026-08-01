@@ -3,6 +3,11 @@ import Foundation
 import Observation
 import WebKit
 
+struct Datatype: Identifiable, Hashable {
+    let id: String
+    let name: String
+}
+
 @Observable
 final class AppModel {
     static let shared = AppModel()
@@ -10,6 +15,7 @@ final class AppModel {
     let webView: WKWebView
     let server = ServerController()
     var lastError: String?
+    var datatypes: [Datatype] = []
 
     private let schemeHandler: PatchworkSchemeHandler
     private var readyTask: Task<Void, Error>?
@@ -66,6 +72,23 @@ final class AppModel {
         return hex
     }
 
+    // The datatype registry fills as modules load, some time after boot.
+    func loadDatatypes() async {
+        for _ in 0..<30 {
+            if let result = try? await runJS("return window.Patchwork.listDatatypes();"),
+               let items = result as? [[String: String]] {
+                let loaded = items.compactMap { item in
+                    item["id"].map { Datatype(id: $0, name: item["name"] ?? $0) }
+                }
+                if !loaded.isEmpty {
+                    datatypes = loaded
+                    return
+                }
+            }
+            try? await Task.sleep(for: .seconds(1))
+        }
+    }
+
     private func boot() async throws {
         // Server first: its port goes into the config injected with index.html.
         await server.start()
@@ -81,6 +104,7 @@ final class AppModel {
                 #if os(macOS)
                 Task { await self.remindersSync.start() }
                 #endif
+                Task { await self.loadDatatypes() }
                 return
             }
             try await Task.sleep(for: .milliseconds(200))

@@ -28,5 +28,10 @@ struct PatchworkApp: App {
                 .keyboardShortcut("i", modifiers: [.command, .option])
             }
         }
+        #if os(macOS)
+        MenuBarExtra("Patchwork", systemImage: "square.grid.2x2") {
+            MenuBarView()
+        }
+        #endif
     }
 }

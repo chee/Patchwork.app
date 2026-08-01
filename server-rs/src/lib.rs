@@ -17,9 +17,6 @@ use subduction_websocket::timeout::FuturesTimerTimeout;
 use subduction_websocket::tokio::server::TokioWebSocketServer;
 use subduction_websocket::DEFAULT_MAX_MESSAGE_SIZE;
 
-/// Clients connect by service name (discovery mode) rather than needing the
-/// server's peer id up front.
-const SERVICE_NAME: &str = "patchwork-local";
 const HANDSHAKE_MAX_DRIFT: Duration = Duration::from_secs(600);
 
 type Server = TokioWebSocketServer<
@@ -74,6 +71,20 @@ pub fn server_start(data_dir: String, port: u16) -> Result<u16, ServerError> {
         .build()
         .map_err(fail)?;
 
+    // automerge-repo's subduction client uses the URL host as the handshake
+    // audience, so the service name must be the exact host:port clients dial.
+    // Resolve an ephemeral port up front so the name can include it.
+    let port = if port == 0 {
+        std::net::TcpListener::bind(("127.0.0.1", 0))
+            .map_err(fail)?
+            .local_addr()
+            .map_err(fail)?
+            .port()
+    } else {
+        port
+    };
+    let service_name = format!("127.0.0.1:{port}");
+
     let address: SocketAddr = ([127, 0, 0, 1], port).into();
     let storage = RedbStorage::new(data_dir.join("storage")).map_err(fail)?;
     let server = runtime
@@ -83,7 +94,7 @@ pub fn server_start(data_dir: String, port: u16) -> Result<u16, ServerError> {
             HANDSHAKE_MAX_DRIFT,
             DEFAULT_MAX_MESSAGE_SIZE,
             signer,
-            Some(SERVICE_NAME),
+            Some(&service_name),
             storage,
             OpenPolicy,
             NonceCache::default(),

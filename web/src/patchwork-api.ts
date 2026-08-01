@@ -1,4 +1,5 @@
 import type { DocHandle, Repo } from "@automerge/automerge-repo/slim";
+import { getRegistry } from "@inkandswitch/patchwork-plugins";
 import type { AccountDoc, AppleConfigDoc } from "./account";
 import type { DocLink, FolderDoc } from "./types";
 import { makeImportPackage } from "./packages";
@@ -25,6 +26,24 @@ function bytesToContent(bytes: Uint8Array): string | Uint8Array {
   return text;
 }
 
+const APPLE_CONFIG_PROPERTIES = [
+  {
+    key: "defaultShortcutFolderUrl",
+    label: "Default shortcut folder",
+    type: "folder-url" as const,
+  },
+  {
+    key: "remindersFolderUrl",
+    label: "Reminders folder",
+    type: "folder-url" as const,
+  },
+  {
+    key: "createNewFolderUrl",
+    label: "New document folder",
+    type: "folder-url" as const,
+  },
+];
+
 export function installPatchworkApi(repo: Repo) {
   // The account loads in the background after boot, so wait briefly for it
   // rather than failing an intent that fires right at launch.
@@ -44,16 +63,29 @@ export function installPatchworkApi(repo: Repo) {
       const account = await accountHandle();
       if (!account) throw new Error("no account is loaded yet");
       const existing = account.doc()?.tools?.apple;
-      if (existing) return repo.find<AppleConfigDoc>(existing);
-      const handle = repo.create<AppleConfigDoc>({
-        "@patchwork": { type: "apple-config", title: "Apple app config" },
-        defaultShortcutFolderUrl: null,
-        remindersFolderUrl: null,
+      const handle = existing
+        ? await repo.find<AppleConfigDoc>(existing)
+        : repo.create<AppleConfigDoc>({
+            "@patchwork": { type: "apple-config", title: "Apple app config" },
+            properties: [],
+          });
+      // Add any properties this build knows about that the doc doesn't,
+      // carrying over values from the old flat-field format.
+      handle.change((d) => {
+        if (!Array.isArray(d.properties)) d.properties = [];
+        const flat = d as unknown as Record<string, string | null>;
+        for (const p of APPLE_CONFIG_PROPERTIES) {
+          if (!d.properties.some((x) => x.key === p.key)) {
+            d.properties.push({ ...p, value: flat[p.key] ?? null });
+          }
+        }
       });
-      account.change((d) => {
-        if (!d.tools) d.tools = {};
-        d.tools.apple = handle.url;
-      });
+      if (!existing) {
+        account.change((d) => {
+          if (!d.tools) d.tools = {};
+          d.tools.apple = handle.url;
+        });
+      }
       return handle;
     })();
     appleConfigCache.catch(() => {
@@ -67,7 +99,10 @@ export function installPatchworkApi(repo: Repo) {
   async function targetFolderUrl(folderUrl?: string): Promise<string> {
     if (folderUrl) return folderUrl;
     const config = (await appleConfigHandle().catch(() => undefined))?.doc();
-    if (config?.defaultShortcutFolderUrl) return config.defaultShortcutFolderUrl;
+    const configured = config?.properties?.find(
+      (p) => p.key === "defaultShortcutFolderUrl",
+    )?.value;
+    if (configured) return configured;
     const root = (await accountHandle())?.doc()?.rootFolderUrl;
     if (!root) {
       throw new Error(
@@ -162,9 +197,75 @@ export function installPatchworkApi(repo: Repo) {
       return importer(url, subpath);
     },
 
-    async appleConfig(): Promise<Record<string, unknown>> {
+    // Flat {key: value} view of the config properties.
+    async appleConfig(): Promise<Record<string, string | null>> {
+      const doc = (await appleConfigHandle()).doc();
+      return Object.fromEntries(
+        (doc?.properties ?? []).map((p) => [p.key, p.value ?? null]),
+      );
+    },
+
+    async appleConfigProperties(): Promise<unknown[]> {
+      const doc = (await appleConfigHandle()).doc();
+      return structuredClone(doc?.properties ?? []);
+    },
+
+    async setAppleConfigValue(
+      key: string,
+      value: string | null,
+    ): Promise<void> {
       const handle = await appleConfigHandle();
-      return structuredClone(handle.doc()) as Record<string, unknown>;
+      handle.change((d) => {
+        const property = d.properties.find((p) => p.key === key);
+        if (!property) throw new Error(`no config property named "${key}"`);
+        property.value = value;
+      });
+    },
+
+    async listRootFolders(): Promise<DocLink[]> {
+      const root = (await accountHandle())?.doc()?.rootFolderUrl;
+      if (!root) return [];
+      const folder = await repo.find<FolderDoc>(root);
+      return structuredClone(
+        (folder.doc()?.docs ?? []).filter((d) => d.type === "folder"),
+      );
+    },
+
+    listDatatypes(): { id: string; name: string }[] {
+      const entries = getRegistry("patchwork:datatype").all() as {
+        id?: unknown;
+        name?: unknown;
+      }[];
+      return entries
+        .filter((d) => d.id != null)
+        .map((d) => ({ id: String(d.id), name: String(d.name ?? d.id) }));
+    },
+
+    // Create a doc of a registered datatype, link it into the configured
+    // create-new folder (falling back like everything else), and open it.
+    async createNew(type: string, name: string): Promise<string> {
+      const pw = window.patchwork as unknown as
+        | {
+            create?: (type: string) => Promise<unknown>;
+            open?: (url: string) => void;
+          }
+        | undefined;
+      if (!pw?.create) throw new Error("the patchwork frame isn't mounted yet");
+      const created = (await pw.create(type)) as { url?: string } | string;
+      const url = typeof created === "string" ? created : created?.url;
+      if (!url) throw new Error(`creating a "${type}" returned no url`);
+      const config = await api.appleConfig();
+      const folder = await repo.find<FolderDoc>(
+        (await targetFolderUrl(
+          config.createNewFolderUrl ?? undefined,
+        )) as never,
+      );
+      folder.change((d) => {
+        if (!Array.isArray(d.docs)) d.docs = [];
+        d.docs.push({ name, type, url: url as never });
+      });
+      pw.open?.(url);
+      return url;
     },
 
     isConnected(): boolean {

@@ -16,10 +16,17 @@ export type AccountDoc = {
 };
 
 // Settings for the native app, linked from the account at tools.apple.
+// Properties are self-describing so a settings UI can render them generically.
+export type AppleConfigProperty = {
+  key: string;
+  label: string;
+  type: "folder-url";
+  value: string | null;
+};
+
 export type AppleConfigDoc = {
   "@patchwork": { type: string; title: string };
-  defaultShortcutFolderUrl: AutomergeUrl | null;
-  remindersFolderUrl: AutomergeUrl | null;
+  properties: AppleConfigProperty[];
 };
 
 export function accountFrameId(

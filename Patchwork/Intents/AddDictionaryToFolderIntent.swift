@@ -7,10 +7,10 @@ struct AddDictionaryToFolderIntent: AppIntent {
     )
 
     @Parameter(
-        title: "Folder URL",
-        description: "The automerge: URL of the folder document. Leave empty to use your account's root folder."
+        title: "Folder",
+        description: "The folder to add to — pick a top-level folder or search by an automerge: URL. Leave empty to use the default shortcut folder, then your account's root folder."
     )
-    var folderUrl: String?
+    var folder: FolderEntity?
 
     @Parameter(title: "Name", description: "The name for the new entry")
     var name: String
@@ -28,16 +28,13 @@ struct AddDictionaryToFolderIntent: AppIntent {
     var type: String?
 
     func perform() async throws -> some IntentResult & ReturnsValue<String> {
-        if let folderUrl, !folderUrl.isEmpty, !folderUrl.hasPrefix("automerge:") {
-            throw PatchworkIntentError.javaScript("Folder URL must start with automerge:")
-        }
         let result = try await AppModel.shared.runJS(
             """
             const content = JSON.parse(json);
             return await window.Patchwork.addToFolder(folderUrl || undefined, name, content, type || undefined);
             """,
             arguments: [
-                "folderUrl": folderUrl ?? "",
+                "folderUrl": folder?.id ?? "",
                 "name": name,
                 "json": dictionary,
                 "type": type ?? "",

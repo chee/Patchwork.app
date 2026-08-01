@@ -60,7 +60,7 @@ public final class ServerController {
             "port": Int(port),
             "url": "ws://127.0.0.1:\(port)",
             "peerId": peerId ?? "",
-            "serviceName": "patchwork-local",
+            "serviceName": "127.0.0.1:\(port)",
             "pid": Int(ProcessInfo.processInfo.processIdentifier),
         ]
         if let data = try? JSONSerialization.data(withJSONObject: info, options: [.prettyPrinted, .sortedKeys]) {
