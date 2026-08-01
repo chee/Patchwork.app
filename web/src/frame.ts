@@ -18,10 +18,6 @@ import {
 import { registerRepoProviderElement } from "@inkandswitch/patchwork-providers";
 import { accountFrameId, type AccountDoc } from "./account";
 
-// Patchwork's published tool registry (gaios site's DEFAULT_MODULES_URL);
-// the account's own moduleSettingsUrl is layered on top as "user".
-const DEFAULT_MODULES_URL = "automerge:3XRXFS96oVXe5D4joMyQWAfNeFNN";
-
 export type OpenOptions = { tool?: string; type?: string; title?: string };
 
 /**
@@ -47,10 +43,9 @@ export async function mountFrame(
   registerPatchworkViewElement({ repo });
 
   const sources: Record<string, string> = {
-    system: DEFAULT_MODULES_URL,
     // @inkandswitch/patchwork-pkg-base, bundled into the app and mounted at
     // /pkg-base; the manifest is rewritten to direct entry files at build
-    base: "/Patchwork-modules.json",
+    system: "/modules.json",
   };
   const settingsUrl = account.doc()?.moduleSettingsUrl;
   if (settingsUrl) sources.user = settingsUrl;

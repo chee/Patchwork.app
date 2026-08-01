@@ -3,23 +3,6 @@
 version = 4
 
 [[package]]
-name = "Patchwork-server"
-version = "0.1.0"
-dependencies = [
- "async-tungstenite",
- "getrandom 0.2.17",
- "hex",
- "sedimentree_core",
- "subduction_core",
- "subduction_crypto",
- "subduction_redb_storage",
- "subduction_websocket",
- "thiserror",
- "tokio",
- "uniffi",
-]
-
-[[package]]
 name = "anstyle"
 version = "1.0.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -789,6 +772,23 @@ name = "parking"
 version = "2.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f38d5652c16fde515bb1ecef450ab0f6a219d619a7274976324d5e377f7dceba"
+
+[[package]]
+name = "patchwork-server"
+version = "0.1.0"
+dependencies = [
+ "async-tungstenite",
+ "getrandom 0.2.17",
+ "hex",
+ "sedimentree_core",
+ "subduction_core",
+ "subduction_crypto",
+ "subduction_redb_storage",
+ "subduction_websocket",
+ "thiserror",
+ "tokio",
+ "uniffi",
+]
 
 [[package]]
 name = "percent-encoding"

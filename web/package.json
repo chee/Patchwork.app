@@ -1,5 +1,5 @@
 {
-  "name": "Patchwork-web",
+  "name": "patchwork-web",
   "private": true,
   "type": "module",
   "scripts": {

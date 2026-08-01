@@ -13,12 +13,16 @@ final class AppModel {
 
     private let schemeHandler: PatchworkSchemeHandler
     private var readyTask: Task<Void, Error>?
+    #if os(macOS)
+    private let remindersSync = RemindersSync()
+    #endif
 
     private init() {
         UserDefaults.standard.set(true, forKey: "WebKitDeveloperExtras")
         let handler = PatchworkSchemeHandler()
         let configuration = WKWebViewConfiguration()
-        configuration.setURLSchemeHandler(handler, forURLScheme: "Patchwork")
+        configuration.setURLSchemeHandler(handler, forURLScheme: "patchwork")
+        configuration.preferences.setValue(true, forKey: "developerExtrasEnabled")
         let webView = WKWebView(frame: .zero, configuration: configuration)
         webView.isInspectable = true
         self.schemeHandler = handler
@@ -47,11 +51,11 @@ final class AppModel {
         let json = (try? JSONSerialization.data(withJSONObject: config)).map {
             String(decoding: $0, as: UTF8.self)
         } ?? "{}"
-        return "<script>window.__Patchwork_CONFIG = \(json);</script>"
+        return "<script>window.__patchwork_CONFIG = \(json);</script>"
     }
 
     private static func signerSeedHex() -> String {
-        let key = "Patchwork.signerSeedHex"
+        let key = "patchwork.signerSeedHex"
         if let existing = UserDefaults.standard.string(forKey: key) {
             return existing
         }
@@ -65,7 +69,7 @@ final class AppModel {
     private func boot() async throws {
         // Server first: its port goes into the config injected with index.html.
         await server.start()
-        webView.load(URLRequest(url: URL(string: "Patchwork://app/index.html")!))
+        webView.load(URLRequest(url: URL(string: "patchwork://app/index.html")!))
         // Poll until the page's boot promise resolves; early calls run against
         // a not-yet-loaded page and just come back false or throw.
         for _ in 0..<600 {
@@ -73,7 +77,12 @@ final class AppModel {
                 "return typeof window.patchworkReady !== 'undefined' ? (await window.patchworkReady, true) : false",
                 contentWorld: .page
             ) as? Bool
-            if ready == true { return }
+            if ready == true {
+                #if os(macOS)
+                Task { await self.remindersSync.start() }
+                #endif
+                return
+            }
             try await Task.sleep(for: .milliseconds(200))
         }
         lastError = "page never became ready"

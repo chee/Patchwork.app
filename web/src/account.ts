@@ -12,6 +12,14 @@ export type AccountDoc = {
   rootFolderUrl?: AutomergeUrl;
   moduleSettingsUrl?: AutomergeUrl;
   contactUrl?: AutomergeUrl;
+  tools?: { apple?: AutomergeUrl };
+};
+
+// Settings for the native app, linked from the account at tools.apple.
+export type AppleConfigDoc = {
+  "@patchwork": { type: string; title: string };
+  defaultShortcutFolderUrl: AutomergeUrl | null;
+  remindersFolderUrl: AutomergeUrl | null;
 };
 
 export function accountFrameId(

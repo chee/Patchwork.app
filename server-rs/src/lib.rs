@@ -19,7 +19,7 @@ use subduction_websocket::DEFAULT_MAX_MESSAGE_SIZE;
 
 /// Clients connect by service name (discovery mode) rather than needing the
 /// server's peer id up front.
-const SERVICE_NAME: &str = "Patchwork-local";
+const SERVICE_NAME: &str = "patchwork-local";
 const HANDSHAKE_MAX_DRIFT: Duration = Duration::from_secs(600);
 
 type Server = TokioWebSocketServer<

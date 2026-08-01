@@ -97,7 +97,7 @@ final class PatchworkSchemeHandler: NSObject, WKURLSchemeHandler {
         if relative == "index.html", let config = model?.configScriptTag() {
             data = Data(
                 String(decoding: data, as: UTF8.self)
-                    .replacingOccurrences(of: "<!-- Patchwork_CONFIG -->", with: config)
+                    .replacingOccurrences(of: "<!-- patchwork_CONFIG -->", with: config)
                     .utf8
             )
         }

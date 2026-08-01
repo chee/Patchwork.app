@@ -9,12 +9,12 @@ const conditions = ["patchwork", "browser", "import"];
 
 // pkg-base's modules.json lists tool *directories*; over http the runtime
 // probes each directory's package.json, but that path is http(s)-only, so on
-// Patchwork:// the entries must point straight at module files. This emits
-// /Patchwork-modules.json with each entry resolved to its package entry point,
+// patchwork:// the entries must point straight at module files. This emits
+// /modules.json with each entry resolved to its package entry point,
 // alongside patchwork()'s static mount of the package at /pkg-base.
 export function pkgBaseManifest(): Plugin {
   return {
-    name: "Patchwork-pkg-base-manifest",
+    name: "patchwork-pkg-base-manifest",
     apply: "build",
     buildStart() {
       const root = dirname(
@@ -45,7 +45,7 @@ export function pkgBaseManifest(): Plugin {
       }
       this.emitFile({
         type: "asset",
-        fileName: "Patchwork-modules.json",
+        fileName: "modules.json",
         source: JSON.stringify({ ...manifest, modules }, null, 1),
       });
     },

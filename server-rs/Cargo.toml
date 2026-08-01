@@ -1,11 +1,11 @@
 [package]
-name = "Patchwork-server"
+name = "patchwork-server"
 version = "0.1.0"
 edition = "2021"
 rust-version = "1.91"
 
 [lib]
-name = "Patchwork_server"
+name = "patchwork_server"
 crate-type = ["staticlib", "cdylib", "lib"]
 
 [[bin]]

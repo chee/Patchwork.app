@@ -59,7 +59,7 @@ function waitForHeads(
 
 // The JS half of PatchworkSchemeHandler: patchwork's resolveAutomergeUrl with the
 // service-worker/SharedWorker handoff collapsed into one native round trip.
-// `raw` is the URL path after Patchwork://app/ — an encoded automerge: URL first,
+// `raw` is the URL path after patchwork://app/ — an encoded automerge: URL first,
 // then the file path inside the folder doc. Scheme handlers can't redirect, so
 // a headless URL is pinned to current heads and served directly.
 export function installResolver(repo: Repo) {

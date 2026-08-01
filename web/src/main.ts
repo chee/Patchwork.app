@@ -6,7 +6,7 @@ import { MemorySigner } from "@automerge/automerge-subduction/slim";
 import { Repo, type PeerId } from "@automerge/automerge-repo/slim";
 import { IndexedDBStorageAdapter } from "@automerge/automerge-repo-storage-indexeddb";
 import { accountFrameId, ensureAccountUrl, loadAccount } from "./account";
-import { installPatchworkApi } from "./Patchwork-api";
+import { installPatchworkApi } from "./patchwork-api";
 import { mountFrame } from "./frame";
 import { installResolver } from "./resolver";
 import type { PatchworkConfig } from "./types";
@@ -29,7 +29,7 @@ function show(id: string, text: string, ok?: boolean) {
 }
 
 async function boot() {
-  const config: PatchworkConfig = window.__Patchwork_CONFIG ?? {};
+  const config: PatchworkConfig = window.__patchwork_CONFIG ?? {};
 
   const [amWasm, subWasm] = await Promise.all([
     fetch("/automerge.wasm").then((r) => r.arrayBuffer()),
@@ -50,7 +50,7 @@ async function boot() {
   const repo = new Repo({
     storage: new IndexedDBStorageAdapter(),
     signer,
-    peerId: `Patchwork-${Math.random().toString(36).slice(2, 10)}` as PeerId,
+    peerId: `patchwork-${Math.random().toString(36).slice(2, 10)}` as PeerId,
     enableRemoteHeadsGossiping: true,
     subductionWebsocketEndpoints: endpoints,
   } as never);
@@ -87,6 +87,7 @@ async function boot() {
       show("account", accountUrl, true);
       const account = await loadAccount(repo, accountUrl);
       Patchwork.account = account;
+      Patchwork.appleConfig().catch(console.warn);
       const frameId = accountFrameId(account.doc());
       show("frame", frameId ?? "none set on account", !!frameId);
       mountFrame(repo, account, signer).catch((error) => {

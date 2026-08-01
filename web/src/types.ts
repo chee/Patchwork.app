@@ -24,7 +24,7 @@ export type PatchworkConfig = {
 
 declare global {
   interface Window {
-    __Patchwork_CONFIG: PatchworkConfig;
+    __patchwork_CONFIG: PatchworkConfig;
     repo: unknown;
     Patchwork: unknown;
     patchworkReady: Promise<unknown>;

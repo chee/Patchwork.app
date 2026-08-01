@@ -2,8 +2,8 @@ import Foundation
 #if os(macOS)
 import dnssd
 
-/// Advertises the sync server as _Patchwork-sync._tcp so it's discoverable with
-/// `dns-sd -B _Patchwork-sync._tcp` (and, later, by other devices on the LAN).
+/// Advertises the sync server as _patchwork-sync._tcp so it's discoverable with
+/// `dns-sd -B _patchwork-sync._tcp` (and, later, by other devices on the LAN).
 final class BonjourAdvertiser {
     private var service: DNSServiceRef?
 
@@ -13,7 +13,7 @@ final class BonjourAdvertiser {
             &service,
             0, 0,
             "Patchwork",
-            "_Patchwork-sync._tcp",
+            "_patchwork-sync._tcp",
             nil, nil,
             port.bigEndian,
             0, nil, nil, nil

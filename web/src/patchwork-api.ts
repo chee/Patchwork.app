@@ -1,5 +1,5 @@
 import type { DocHandle, Repo } from "@automerge/automerge-repo/slim";
-import type { AccountDoc } from "./account";
+import type { AccountDoc, AppleConfigDoc } from "./account";
 import type { DocLink, FolderDoc } from "./types";
 import { makeImportPackage } from "./packages";
 import {
@@ -26,18 +26,49 @@ function bytesToContent(bytes: Uint8Array): string | Uint8Array {
 }
 
 export function installPatchworkApi(repo: Repo) {
-  // No folder url means the account's root folder. The account loads in the
-  // background after boot, so wait briefly for it rather than failing an
-  // intent that fires right at launch.
-  async function targetFolderUrl(folderUrl?: string): Promise<string> {
-    if (folderUrl) return folderUrl;
-    const account =
+  // The account loads in the background after boot, so wait briefly for it
+  // rather than failing an intent that fires right at launch.
+  async function accountHandle(): Promise<DocHandle<AccountDoc> | undefined> {
+    return (
       api.account ??
       (await Promise.race([
         api.accountReady,
         new Promise<undefined>((resolve) => setTimeout(resolve, 5000)),
-      ]));
-    const root = account?.doc()?.rootFolderUrl;
+      ]))
+    );
+  }
+
+  let appleConfigCache: Promise<DocHandle<AppleConfigDoc>> | undefined;
+  function appleConfigHandle(): Promise<DocHandle<AppleConfigDoc>> {
+    appleConfigCache ??= (async () => {
+      const account = await accountHandle();
+      if (!account) throw new Error("no account is loaded yet");
+      const existing = account.doc()?.tools?.apple;
+      if (existing) return repo.find<AppleConfigDoc>(existing);
+      const handle = repo.create<AppleConfigDoc>({
+        "@patchwork": { type: "apple-config", title: "Apple app config" },
+        defaultShortcutFolderUrl: null,
+        remindersFolderUrl: null,
+      });
+      account.change((d) => {
+        if (!d.tools) d.tools = {};
+        d.tools.apple = handle.url;
+      });
+      return handle;
+    })();
+    appleConfigCache.catch(() => {
+      appleConfigCache = undefined;
+    });
+    return appleConfigCache;
+  }
+
+  // No folder url means the configured default shortcut folder, then the
+  // account's root folder.
+  async function targetFolderUrl(folderUrl?: string): Promise<string> {
+    if (folderUrl) return folderUrl;
+    const config = (await appleConfigHandle().catch(() => undefined))?.doc();
+    if (config?.defaultShortcutFolderUrl) return config.defaultShortcutFolderUrl;
+    const root = (await accountHandle())?.doc()?.rootFolderUrl;
     if (!root) {
       throw new Error(
         "no folder url given, and no account root folder is available (set up your account in the app)",
@@ -129,6 +160,11 @@ export function installPatchworkApi(repo: Repo) {
     async importPackage(url: string, subpath?: string): Promise<unknown> {
       const importer = await makeImportPackage(repo);
       return importer(url, subpath);
+    },
+
+    async appleConfig(): Promise<Record<string, unknown>> {
+      const handle = await appleConfigHandle();
+      return structuredClone(handle.doc()) as Record<string, unknown>;
     },
 
     isConnected(): boolean {
