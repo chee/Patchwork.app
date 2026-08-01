@@ -14,7 +14,20 @@ struct PatchworkApp: App {
         WindowGroup {
             ContentView()
         }
+        #if os(macOS)
+        .windowStyle(.hiddenTitleBar)
+        #endif
         .commands {
+            CommandGroup(replacing: .appSettings) {
+                Button("Settings…") {
+                    Task {
+                        _ = try? await AppModel.shared.runJS(
+                            "window.__patchworkOpenSettings?.();"
+                        )
+                    }
+                }
+                .keyboardShortcut(",", modifiers: .command)
+            }
             CommandGroup(after: .toolbar) {
                 Button("Show Web Inspector") {
                     let webView = AppModel.shared.webView

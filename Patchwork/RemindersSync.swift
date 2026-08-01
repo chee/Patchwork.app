@@ -64,6 +64,13 @@ final class RemindersSync {
 
     private func add(_ reminder: EKReminder) async throws {
         let title = reminder.title ?? "Untitled"
+        let when: Any
+        if let components = reminder.dueDateComponents,
+           let date = Calendar.current.date(from: components) {
+            when = date.formatted(.iso8601.year().month().day())
+        } else {
+            when = NSNull()
+        }
         let action: [String: Any] = [
             "@patchwork": ["type": "@chee.baby/action", "title": title],
             "checklist": [Any](),
@@ -74,7 +81,7 @@ final class RemindersSync {
             "stateChanged": NSNull(),
             "title": title,
             "type": "action",
-            "when": NSNull(),
+            "when": when,
         ]
         let json = String(
             decoding: try JSONSerialization.data(withJSONObject: action),

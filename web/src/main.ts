@@ -9,6 +9,7 @@ import { accountFrameId, ensureAccountUrl, loadAccount } from "./account";
 import { installPatchworkApi } from "./patchwork-api";
 import { mountFrame } from "./frame";
 import { installResolver } from "./resolver";
+import { installSettings } from "./settings";
 import type { PatchworkConfig } from "./types";
 
 const DEFAULT_ENDPOINT = "wss://subduction.sync.inkandswitch.com";
@@ -58,6 +59,7 @@ async function boot() {
   window.repo = repo;
   installResolver(repo);
   const Patchwork = installPatchworkApi(repo);
+  installSettings();
   show("repo-state", "ready", true);
 
   const updateConnection = async () => {

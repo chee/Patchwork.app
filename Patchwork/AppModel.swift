@@ -29,6 +29,19 @@ final class AppModel {
         let configuration = WKWebViewConfiguration()
         configuration.setURLSchemeHandler(handler, forURLScheme: "patchwork")
         configuration.preferences.setValue(true, forKey: "developerExtrasEnabled")
+        // patchwork-view is a custom element (display: inline by default) —
+        // pin it to the viewport so the frame always fills the screen exactly.
+        var css = ".frame-warning-banner{display:none}"
+            + "patchwork-view{position:fixed;inset:0;display:flow-root;overflow:hidden}"
+        #if os(macOS)
+        // Frameless window: clear the traffic lights with the sidebar toggle.
+        css += ".frame__left-toggle{margin-left:72px}"
+        #endif
+        configuration.userContentController.addUserScript(WKUserScript(
+            source: "const style=document.createElement('style');style.textContent='\(css)';document.head.appendChild(style);",
+            injectionTime: .atDocumentEnd,
+            forMainFrameOnly: true
+        ))
         let webView = WKWebView(frame: .zero, configuration: configuration)
         webView.isInspectable = true
         self.schemeHandler = handler

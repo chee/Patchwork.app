@@ -57,6 +57,8 @@ export async function mountFrame(
       const modPlugins = (mod as { plugins?: unknown })?.plugins;
       if (Array.isArray(modPlugins)) {
         registerPlugins(modPlugins, name);
+        const status = document.getElementById("frame");
+        if (status) status.textContent = `loading tools… (${name})`;
       } else {
         console.warn(`module ${name} has no plugins array`);
       }

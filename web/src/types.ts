@@ -31,6 +31,7 @@ declare global {
     patchwork: unknown;
     Automerge: unknown;
     AutomergeRepo: unknown;
+    __patchworkOpenSettings?: () => void;
     __patchworkResolve?: (path: string) => Promise<{
       status: number;
       mimeType: string;

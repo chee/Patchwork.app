@@ -38,7 +38,7 @@ final class PatchworkSchemeHandler: NSObject, WKURLSchemeHandler {
         if firstSegment.removingPercentEncoding?.hasPrefix("automerge:") == true {
             return try await resolveDocURL(path: path, url: url)
         }
-        return try serveBundleFile(path: path, url: url)
+        return try await serveBundleFile(path: path, url: url)
     }
 
     private func resolveDocURL(path: String, url: URL) async throws -> (Data, URLResponse) {
@@ -83,32 +83,38 @@ final class PatchworkSchemeHandler: NSObject, WKURLSchemeHandler {
         return respond(200, "ok")
     }
 
-    private func serveBundleFile(path: String, url: URL) throws -> (Data, URLResponse) {
+    // File reads happen off the main actor so module fetches don't serialize
+    // through the UI thread; the config tag is read here first because it's
+    // main-actor state.
+    private func serveBundleFile(path: String, url: URL) async throws -> (Data, URLResponse) {
         let relative = path.isEmpty ? "index.html" : path
-        guard let base = Bundle.main.url(forResource: "PatchworkWeb", withExtension: "bundle") else {
-            throw URLError(.fileDoesNotExist)
-        }
-        let fileURL = base.appendingPathComponent(relative)
-        guard fileURL.path.hasPrefix(base.path),
-              FileManager.default.fileExists(atPath: fileURL.path) else {
-            throw URLError(.fileDoesNotExist)
-        }
-        var data = try Data(contentsOf: fileURL)
-        if relative == "index.html", let config = model?.configScriptTag() {
-            data = Data(
-                String(decoding: data, as: UTF8.self)
-                    .replacingOccurrences(of: "<!-- patchwork_CONFIG -->", with: config)
-                    .utf8
-            )
-        }
-        let response = HTTPURLResponse(
-            url: url, statusCode: 200, httpVersion: "HTTP/1.1",
-            headerFields: [
-                "Content-Type": Self.mimeType(for: fileURL.pathExtension),
-                "Content-Length": "\(data.count)",
-            ]
-        )!
-        return (data, response)
+        let config = relative == "index.html" ? model?.configScriptTag() : nil
+        return try await Task.detached {
+            guard let base = Bundle.main.url(forResource: "PatchworkWeb", withExtension: "bundle") else {
+                throw URLError(.fileDoesNotExist)
+            }
+            let fileURL = base.appendingPathComponent(relative)
+            guard fileURL.path.hasPrefix(base.path),
+                  FileManager.default.fileExists(atPath: fileURL.path) else {
+                throw URLError(.fileDoesNotExist)
+            }
+            var data = try Data(contentsOf: fileURL)
+            if let config {
+                data = Data(
+                    String(decoding: data, as: UTF8.self)
+                        .replacingOccurrences(of: "<!-- patchwork_CONFIG -->", with: config)
+                        .utf8
+                )
+            }
+            let response = HTTPURLResponse(
+                url: url, statusCode: 200, httpVersion: "HTTP/1.1",
+                headerFields: [
+                    "Content-Type": Self.mimeType(for: fileURL.pathExtension),
+                    "Content-Length": "\(data.count)",
+                ]
+            )!
+            return (data, response)
+        }.value
     }
 
     private static func mimeType(for pathExtension: String) -> String {

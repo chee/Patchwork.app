@@ -16,6 +16,12 @@ struct MenuBarView: View {
             }
         }
         Divider()
+        Button("Settings…") {
+            activate()
+            Task {
+                _ = try? await model.runJS("window.__patchworkOpenSettings?.();")
+            }
+        }
         Button("Quit Patchwork") { NSApp.terminate(nil) }
     }
 
