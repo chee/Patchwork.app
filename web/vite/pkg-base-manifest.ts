@@ -43,6 +43,7 @@ export function pkgBaseManifest(): Plugin {
           );
         }
       }
+      modules.push("./modules/apple-tray.js");
       this.emitFile({
         type: "asset",
         fileName: "modules.json",

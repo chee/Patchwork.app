@@ -1,4 +1,8 @@
 import "@inkandswitch/patchwork/global.css";
+
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("/sw.js").catch(console.warn);
+}
 import { initializeWasm } from "@automerge/automerge/slim";
 // @ts-expect-error initSync is a wasm-bindgen helper missing from the published typings
 import { initSync as initSubductionSync } from "@automerge/automerge-subduction/slim";
@@ -10,6 +14,7 @@ import { installPatchworkApi } from "./patchwork-api";
 import { mountFrame } from "./frame";
 import { installResolver } from "./resolver";
 import { installSettings } from "./settings";
+import { installHandoffListener } from "./handoff";
 import type { PatchworkConfig } from "./types";
 
 const DEFAULT_ENDPOINT = "wss://subduction.sync.inkandswitch.com";
@@ -58,6 +63,7 @@ async function boot() {
 
   window.repo = repo;
   installResolver(repo);
+  installHandoffListener();
   const Patchwork = installPatchworkApi(repo);
   installSettings();
   show("repo-state", "ready", true);

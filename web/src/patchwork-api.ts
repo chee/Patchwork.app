@@ -235,9 +235,10 @@ export function installPatchworkApi(repo: Repo) {
       const entries = getRegistry("patchwork:datatype").all() as {
         id?: unknown;
         name?: unknown;
+        unlisted?: boolean;
       }[];
       return entries
-        .filter((d) => d.id != null)
+        .filter((d) => d.id != null && !d.unlisted)
         .map((d) => ({ id: String(d.id), name: String(d.name ?? d.id) }));
     },
 

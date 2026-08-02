@@ -57,25 +57,12 @@ export async function mountFrame(
       const modPlugins = (mod as { plugins?: unknown })?.plugins;
       if (Array.isArray(modPlugins)) {
         registerPlugins(modPlugins, name);
-        const status = document.getElementById("frame");
-        if (status) status.textContent = `loading tools… (${name})`;
       } else {
         console.warn(`module ${name} has no plugins array`);
       }
     },
     unregisterPlugins,
   );
-  await watcher.doneLoading;
-
-  const tools = getRegistry("patchwork:tool")
-    .all()
-    .map((tool) => (tool as { id?: string }).id);
-  console.log("Patchwork: tools registered:", tools);
-  if (!tools.includes(frameId)) {
-    console.warn(
-      `Patchwork: frame "${frameId}" not in registry, mounting anyway`,
-    );
-  }
 
   // Seed the root view before the router runs so mobileFrameId wins over the
   // router's own frameToolId-only seeding, then let the real router own hash

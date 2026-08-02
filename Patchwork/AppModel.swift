@@ -16,6 +16,7 @@ final class AppModel {
     let server = ServerController()
     var lastError: String?
     var datatypes: [Datatype] = []
+    var showingAppleTray = false
 
     private let schemeHandler: PatchworkSchemeHandler
     private var readyTask: Task<Void, Error>?
@@ -44,6 +45,7 @@ final class AppModel {
             injectionTime: .atDocumentEnd,
             forMainFrameOnly: true
         ))
+        configuration.userContentController.add(AppleTrayHandler(), name: "appleTray")
         #if os(macOS)
         configuration.userContentController.add(WindowDragHandler(), name: "dragWindow")
         configuration.userContentController.addUserScript(WKUserScript(
@@ -141,6 +143,15 @@ final class AppModel {
         }
         lastError = "page never became ready"
         throw PatchworkIntentError.javaScript("page never became ready")
+    }
+}
+
+final class AppleTrayHandler: NSObject, WKScriptMessageHandler {
+    func userContentController(
+        _ userContentController: WKUserContentController,
+        didReceive message: WKScriptMessage
+    ) {
+        AppModel.shared.showingAppleTray = true
     }
 }
 

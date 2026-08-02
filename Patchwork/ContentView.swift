@@ -64,6 +64,7 @@ struct PatchworkWebView: UIViewRepresentable {
     func makeUIView(context: Context) -> WKWebView { AppModel.shared.webView }
     func updateUIView(_ uiView: WKWebView, context: Context) {}
 }
+#endif
 
 struct PeerSheet: View {
     @State private var model = AppModel.shared
@@ -73,11 +74,21 @@ struct PeerSheet: View {
         NavigationStack {
             List {
                 Button("Copy P2P Code") {
+                    #if os(macOS)
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.setString(model.server.irohNodeId ?? "", forType: .string)
+                    #else
                     UIPasteboard.general.string = model.server.irohNodeId
+                    #endif
                 }
                 Button("Add Peer from Clipboard") {
+                    #if os(macOS)
+                    guard let nodeId = NSPasteboard.general.string(forType: .string)?
+                        .trimmingCharacters(in: .whitespacesAndNewlines), !nodeId.isEmpty else { return }
+                    #else
                     guard let nodeId = UIPasteboard.general.string?
                         .trimmingCharacters(in: .whitespacesAndNewlines), !nodeId.isEmpty else { return }
+                    #endif
                     do {
                         try model.server.addFriend(nodeId)
                     } catch {
@@ -93,7 +104,9 @@ struct PeerSheet: View {
                 }
             }
             .navigationTitle("Peer to Peer")
+            #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
+            #endif
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Done") { dismiss() }
@@ -102,13 +115,9 @@ struct PeerSheet: View {
         }
     }
 }
-#endif
 
 struct ContentView: View {
     @State private var model = AppModel.shared
-    #if os(iOS)
-    @State private var showPeerSheet = false
-    #endif
 
     var body: some View {
         VStack(spacing: 0) {
@@ -124,21 +133,9 @@ struct ContentView: View {
                     .padding(4)
             }
         }
-        #if os(iOS)
-        .overlay(alignment: .bottomTrailing) {
-            Button {
-                showPeerSheet = true
-            } label: {
-                Image(systemName: "antenna.radiowaves.left.and.right")
-                    .padding(10)
-            }
-            .glassEffect()
-            .padding()
-        }
-        .sheet(isPresented: $showPeerSheet) {
+        .sheet(isPresented: $model.showingAppleTray) {
             PeerSheet()
         }
-        #endif
     }
 }
 
