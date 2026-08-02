@@ -18,7 +18,7 @@ struct PatchworkWebView: NSViewRepresentable {
 /// Insets the traffic lights so they line up with the sidebar toggle in the
 /// frameless window. AppKit resets button frames on resize, so re-apply.
 struct WindowChrome: NSViewRepresentable {
-    static let inset = CGPoint(x: 7, y: -4)
+    static let inset = CGPoint(x: 7, y: -7)
 
     final class Coordinator {
         var observer: (any NSObjectProtocol)?

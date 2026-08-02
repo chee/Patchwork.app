@@ -34,8 +34,10 @@ final class AppModel {
         var css = ".frame-warning-banner{display:none}"
             + "body>repo-provider>patchwork-view{position:fixed;inset:0;display:flow-root;overflow:hidden}"
         #if os(macOS)
-        // Frameless window: clear the traffic lights with the sidebar toggle.
+        // Frameless window: clear the traffic lights with the sidebar toggle,
+        // and when the sidebar is collapsed pad the topbar past lights + toggle.
         css += ".frame__left-toggle{margin-left:72px}"
+            + ".frame__topbar--left-collapsed{padding-left:calc(72px + var(--threepane-space-2xl))}"
         #endif
         configuration.userContentController.addUserScript(WKUserScript(
             source: "const style=document.createElement('style');style.textContent='\(css)';document.head.appendChild(style);",
