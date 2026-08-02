@@ -29,10 +29,10 @@ final class AppModel {
         let configuration = WKWebViewConfiguration()
         configuration.setURLSchemeHandler(handler, forURLScheme: "patchwork")
         configuration.preferences.setValue(true, forKey: "developerExtrasEnabled")
-        // patchwork-view is a custom element (display: inline by default) —
-        // pin it to the viewport so the frame always fills the screen exactly.
+        // Pin only the root view (frame.ts mounts body > repo-provider >
+        // patchwork-view) to the viewport; nested patchwork-views style themselves.
         var css = ".frame-warning-banner{display:none}"
-            + "patchwork-view{position:fixed;inset:0;display:flow-root;overflow:hidden}"
+            + "body>repo-provider>patchwork-view{position:fixed;inset:0;display:flow-root;overflow:hidden}"
         #if os(macOS)
         // Frameless window: clear the traffic lights with the sidebar toggle.
         css += ".frame__left-toggle{margin-left:72px}"
@@ -42,6 +42,21 @@ final class AppModel {
             injectionTime: .atDocumentEnd,
             forMainFrameOnly: true
         ))
+        #if os(macOS)
+        configuration.userContentController.add(WindowDragHandler(), name: "dragWindow")
+        configuration.userContentController.addUserScript(WKUserScript(
+            source: """
+            addEventListener("mousedown", event => {
+                if (event.button !== 0 || event.clientY > 28) return;
+                const interactive = "button, a, input, textarea, select, [role=button], [contenteditable=true]";
+                if (event.composedPath().some(n => n.matches?.(interactive))) return;
+                webkit.messageHandlers.dragWindow.postMessage(null);
+            }, { capture: true });
+            """,
+            injectionTime: .atDocumentEnd,
+            forMainFrameOnly: true
+        ))
+        #endif
         let webView = WKWebView(frame: .zero, configuration: configuration)
         webView.isInspectable = true
         self.schemeHandler = handler
@@ -126,3 +141,16 @@ final class AppModel {
         throw PatchworkIntentError.javaScript("page never became ready")
     }
 }
+
+#if os(macOS)
+final class WindowDragHandler: NSObject, WKScriptMessageHandler {
+    func userContentController(
+        _ userContentController: WKUserContentController,
+        didReceive message: WKScriptMessage
+    ) {
+        guard let window = message.webView?.window,
+              let event = NSApp.currentEvent else { return }
+        window.performDrag(with: event)
+    }
+}
+#endif

@@ -87,7 +87,16 @@ async function boot() {
     try {
       const accountUrl = await ensureAccountUrl(config.accountUrl);
       show("account", accountUrl, true);
+      show("frame", "fetching account doc…");
+      const slow = setTimeout(() => {
+        show(
+          "frame",
+          "still waiting for the account doc — no connected peer has it yet. on a new device, add a peer (or sync the account to the public server) and this will pick up automatically",
+          false,
+        );
+      }, 10_000);
       const account = await loadAccount(repo, accountUrl);
+      clearTimeout(slow);
       Patchwork.account = account;
       Patchwork.appleConfig().catch(console.warn);
       const frameId = accountFrameId(account.doc());

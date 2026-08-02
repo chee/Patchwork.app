@@ -1,7 +1,9 @@
 uniffi::setup_scaffolding!();
 
+mod handler;
 mod key;
 mod transport;
+mod wire;
 
 use std::net::SocketAddr;
 use std::path::{Path, PathBuf};
@@ -13,7 +15,6 @@ use future_form::Sendable;
 use iroh::{endpoint::presets, EndpointAddr};
 use sedimentree_core::depth::CountLeadingZeroBytes;
 use subduction_core::{
-    handler::sync::SyncHandler,
     handshake::{
         self,
         audience::{Audience, DiscoveryId},
@@ -27,18 +28,23 @@ use subduction_core::{
     transport::message::MessageTransport,
 };
 use subduction_crypto::signer::memory::MemorySigner;
+use subduction_ephemeral::{
+    clock::std_clock::StdClock, config::EphemeralConfig, handler::EphemeralHandler,
+    policy::OpenEphemeralPolicy,
+};
 use subduction_redb_storage::RedbStorage;
 use subduction_websocket::{
     handshake::WebSocketHandshake,
     sleep::TokioSleeper,
     timeout::FuturesTimerTimeout,
-    tokio::{unified::UnifiedWebSocket, TrackedTokioSpawn},
+    tokio::{unified::UnifiedWebSocket, TokioSpawn, TrackedTokioSpawn},
     websocket::{KeepAlive, WebSocket},
     DEFAULT_MAX_MESSAGE_SIZE,
 };
 use tokio::net::TcpListener;
 use tokio_util::{sync::CancellationToken, task::TaskTracker};
 
+use handler::ServerHandler;
 use transport::UnifiedTransport;
 
 const HANDSHAKE_MAX_DRIFT: Duration = Duration::from_secs(600);
@@ -46,14 +52,14 @@ const HANDSHAKE_MAX_DRIFT: Duration = Duration::from_secs(600);
 // host string. Dialing assumes the well-known port.
 const PREFERRED_WS_PORT: u16 = 43217;
 
-type Conn = MessageTransport<UnifiedTransport>;
+pub(crate) type Conn = MessageTransport<UnifiedTransport>;
 type Node = Arc<
     Subduction<
         'static,
         Sendable,
         RedbStorage,
         Conn,
-        SyncHandler<Sendable, RedbStorage, Conn, OpenPolicy, CountLeadingZeroBytes, TrackedTokioSpawn>,
+        ServerHandler,
         OpenPolicy,
         MemorySigner,
         FuturesTimerTimeout,
@@ -164,7 +170,7 @@ async fn start_node(
     let storage = RedbStorage::new(data_dir.join("storage")).map_err(fail)?;
     let tasks = TaskTracker::new();
     let spawner = TrackedTokioSpawn::new(tasks.clone());
-    let (node, _handler, listener_fut, manager_fut) = SubductionBuilder::new()
+    let (node, listener_fut, manager_fut, ()) = SubductionBuilder::new()
         .signer(signer.clone())
         .storage(storage, Arc::new(OpenPolicy))
         .spawner(spawner)
@@ -172,7 +178,18 @@ async fn start_node(
         .nonce_cache(NonceCache::default())
         .depth_metric(CountLeadingZeroBytes)
         .discovery_id(DiscoveryId::new(service_name.as_bytes()))
-        .build::<Sendable, Conn>();
+        .build_composed::<Sendable, Conn, _, _>(|sync_handler| {
+            let (ephemeral, ephemeral_rx) = EphemeralHandler::new(
+                sync_handler.connections(),
+                OpenEphemeralPolicy,
+                EphemeralConfig::default(),
+                StdClock,
+                TokioSpawn,
+            );
+            // The server only relays ephemeral traffic; drain the events.
+            tokio::spawn(async move { while ephemeral_rx.recv().await.is_ok() {} });
+            (Arc::new(ServerHandler::new(sync_handler, ephemeral)), ())
+        });
     tokio::spawn(async move {
         let _ = manager_fut.await;
     });

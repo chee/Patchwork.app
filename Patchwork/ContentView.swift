@@ -5,6 +5,7 @@
 //  Created by chee on 2026-07-31.
 //
 
+import PatchworkServerKit
 import SwiftUI
 import WebKit
 
@@ -63,10 +64,51 @@ struct PatchworkWebView: UIViewRepresentable {
     func makeUIView(context: Context) -> WKWebView { AppModel.shared.webView }
     func updateUIView(_ uiView: WKWebView, context: Context) {}
 }
+
+struct PeerSheet: View {
+    @State private var model = AppModel.shared
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            List {
+                Button("Copy P2P Code") {
+                    UIPasteboard.general.string = model.server.irohNodeId
+                }
+                Button("Add Peer from Clipboard") {
+                    guard let nodeId = UIPasteboard.general.string?
+                        .trimmingCharacters(in: .whitespacesAndNewlines), !nodeId.isEmpty else { return }
+                    do {
+                        try model.server.addFriend(nodeId)
+                    } catch {
+                        model.lastError = "add peer: \(error.localizedDescription)"
+                    }
+                }
+                if !model.server.friends.isEmpty {
+                    Section("Peers") {
+                        ForEach(model.server.friends, id: \.self) { friend in
+                            Text("\(friend.prefix(10))…")
+                        }
+                    }
+                }
+            }
+            .navigationTitle("Peer to Peer")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") { dismiss() }
+                }
+            }
+        }
+    }
+}
 #endif
 
 struct ContentView: View {
     @State private var model = AppModel.shared
+    #if os(iOS)
+    @State private var showPeerSheet = false
+    #endif
 
     var body: some View {
         VStack(spacing: 0) {
@@ -82,6 +124,21 @@ struct ContentView: View {
                     .padding(4)
             }
         }
+        #if os(iOS)
+        .overlay(alignment: .bottomTrailing) {
+            Button {
+                showPeerSheet = true
+            } label: {
+                Image(systemName: "antenna.radiowaves.left.and.right")
+                    .padding(10)
+            }
+            .glassEffect()
+            .padding()
+        }
+        .sheet(isPresented: $showPeerSheet) {
+            PeerSheet()
+        }
+        #endif
     }
 }
 
