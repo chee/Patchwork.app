@@ -117,7 +117,7 @@ final class PatchworkSchemeHandler: NSObject, WKURLSchemeHandler {
         }.value
     }
 
-    private static func mimeType(for pathExtension: String) -> String {
+    private nonisolated static func mimeType(for pathExtension: String) -> String {
         switch pathExtension.lowercased() {
         case "html": "text/html; charset=utf-8"
         case "js", "mjs": "text/javascript"

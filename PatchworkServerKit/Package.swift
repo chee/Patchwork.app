@@ -14,7 +14,8 @@ let package = Package(
         ),
         .target(
             name: "PatchworkServerKit",
-            dependencies: ["PatchworkServerFFI"]
+            dependencies: ["PatchworkServerFFI"],
+            linkerSettings: [.linkedFramework("SystemConfiguration")]
         ),
     ]
 )

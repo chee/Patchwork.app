@@ -461,6 +461,8 @@ public enum ServerError: Swift.Error {
     
     case AlreadyRunning(message: String)
     
+    case NotRunning(message: String)
+    
     case Failed(message: String)
     
 }
@@ -483,7 +485,11 @@ public struct FfiConverterTypeServerError: FfiConverterRustBuffer {
             message: try FfiConverterString.read(from: &buf)
         )
         
-        case 2: return .Failed(
+        case 2: return .NotRunning(
+            message: try FfiConverterString.read(from: &buf)
+        )
+        
+        case 3: return .Failed(
             message: try FfiConverterString.read(from: &buf)
         )
         
@@ -500,8 +506,10 @@ public struct FfiConverterTypeServerError: FfiConverterRustBuffer {
         
         case .AlreadyRunning(_ /* message is ignored*/):
             writeInt(&buf, Int32(1))
-        case .Failed(_ /* message is ignored*/):
+        case .NotRunning(_ /* message is ignored*/):
             writeInt(&buf, Int32(2))
+        case .Failed(_ /* message is ignored*/):
+            writeInt(&buf, Int32(3))
 
         
         }
@@ -585,6 +593,58 @@ fileprivate struct FfiConverterOptionString: FfiConverterRustBuffer {
         }
     }
 }
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceString: FfiConverterRustBuffer {
+    typealias SwiftType = [String]
+
+    public static func write(_ value: [String], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterString.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [String] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [String]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterString.read(from: &buf))
+        }
+        return seq
+    }
+}
+/**
+ * Save a friend's iroh node id and dial them now.
+ */
+public func serverAddIrohPeer(nodeId: String)throws   {try rustCallWithError(FfiConverterTypeServerError_lift) {
+    uniffi_patchwork_server_fn_func_server_add_iroh_peer(
+        FfiConverterString.lower(nodeId),$0
+    )
+}
+}
+/**
+ * The iroh node id friends dial to sync with this server.
+ */
+public func serverIrohNodeId() -> String?  {
+    return try!  FfiConverterOptionString.lift(try! rustCall() {
+    uniffi_patchwork_server_fn_func_server_iroh_node_id($0
+    )
+})
+}
+/**
+ * Saved friend node ids.
+ */
+public func serverIrohPeers() -> [String]  {
+    return try!  FfiConverterSequenceString.lift(try! rustCall() {
+    uniffi_patchwork_server_fn_func_server_iroh_peers($0
+    )
+})
+}
 public func serverPeerId() -> String?  {
     return try!  FfiConverterOptionString.lift(try! rustCall() {
     uniffi_patchwork_server_fn_func_server_peer_id($0
@@ -599,7 +659,8 @@ public func serverPort() -> UInt16?  {
 }
 /**
  * Starts the sync server on 127.0.0.1. `port` 0 binds an ephemeral port.
- * Returns the actually-bound port.
+ * Also binds an iroh endpoint and redials saved iroh peers.
+ * Returns the actually-bound websocket port.
  */
 public func serverStart(dataDir: String, port: UInt16)throws  -> UInt16  {
     return try  FfiConverterUInt16.lift(try rustCallWithError(FfiConverterTypeServerError_lift) {
@@ -630,13 +691,22 @@ private let initializationResult: InitializationResult = {
     if bindings_contract_version != scaffolding_contract_version {
         return InitializationResult.contractVersionMismatch
     }
+    if (uniffi_patchwork_server_checksum_func_server_add_iroh_peer() != 33730) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_patchwork_server_checksum_func_server_iroh_node_id() != 10680) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_patchwork_server_checksum_func_server_iroh_peers() != 11415) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_patchwork_server_checksum_func_server_peer_id() != 32560) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_patchwork_server_checksum_func_server_port() != 19022) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_patchwork_server_checksum_func_server_start() != 36417) {
+    if (uniffi_patchwork_server_checksum_func_server_start() != 23204) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_patchwork_server_checksum_func_server_stop() != 11444) {

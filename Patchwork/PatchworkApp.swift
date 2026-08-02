@@ -31,12 +31,12 @@ struct PatchworkApp: App {
             CommandGroup(after: .toolbar) {
                 Button("Show Web Inspector") {
                     let webView = AppModel.shared.webView
-                    guard webView.responds(to: Selector(("_inspector"))),
-                          let inspector = webView.perform(Selector(("_inspector")))?
+                    guard webView.responds(to: NSSelectorFromString("_inspector")),
+                          let inspector = webView.perform(NSSelectorFromString("_inspector"))?
                             .takeUnretainedValue() as? NSObject,
-                          inspector.responds(to: Selector(("show")))
+                          inspector.responds(to: NSSelectorFromString("show"))
                     else { return }
-                    inspector.perform(Selector(("show")))
+                    inspector.perform(NSSelectorFromString("show"))
                 }
                 .keyboardShortcut("i", modifiers: [.command, .option])
             }

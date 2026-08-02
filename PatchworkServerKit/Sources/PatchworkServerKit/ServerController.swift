@@ -1,11 +1,14 @@
 import Foundation
 import Observation
+import SystemConfiguration
 
 @Observable
 @MainActor
 public final class ServerController {
     public private(set) var port: UInt16?
     public private(set) var peerId: String?
+    public private(set) var irohNodeId: String?
+    public private(set) var friends: [String] = []
     public private(set) var lastError: String?
 
     public nonisolated static let preferredPort: UInt16 = 43217
@@ -40,6 +43,8 @@ public final class ServerController {
             }.value
             port = bound
             peerId = serverPeerId()
+            irohNodeId = serverIrohNodeId()
+            friends = serverIrohPeers()
             writeServerInfo(to: dir, port: bound)
             bonjour.start(port: bound)
         } catch {
@@ -55,11 +60,18 @@ public final class ServerController {
         peerId = nil
     }
 
+    /// Saves a friend's iroh node id and dials them.
+    public func addFriend(_ nodeId: String) throws {
+        try serverAddIrohPeer(nodeId: nodeId)
+        friends = serverIrohPeers()
+    }
+
     private func writeServerInfo(to dir: URL, port: UInt16) {
         let info: [String: Any] = [
             "port": Int(port),
             "url": "ws://127.0.0.1:\(port)",
             "peerId": peerId ?? "",
+            "irohNodeId": irohNodeId ?? "",
             "serviceName": "127.0.0.1:\(port)",
             "pid": Int(ProcessInfo.processInfo.processIdentifier),
         ]

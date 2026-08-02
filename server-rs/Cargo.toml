@@ -19,6 +19,12 @@ subduction_crypto = { git = "https://github.com/inkandswitch/subduction", rev = 
 subduction_websocket = { git = "https://github.com/inkandswitch/subduction", rev = "9c0fbfd06bd499d4a8b53548788119d33af0d1ec", default-features = false, features = ["tokio_server_any", "tokio_client_any"] }
 subduction_redb_storage = { git = "https://github.com/inkandswitch/subduction", rev = "9c0fbfd06bd499d4a8b53548788119d33af0d1ec" }
 sedimentree_core = { git = "https://github.com/inkandswitch/subduction", rev = "9c0fbfd06bd499d4a8b53548788119d33af0d1ec", default-features = false, features = ["std"] }
+subduction_iroh = { git = "https://github.com/inkandswitch/subduction", rev = "9c0fbfd06bd499d4a8b53548788119d33af0d1ec" }
+iroh = "1"
+future_form = "0.3"
+futures = { version = "0.3", default-features = false, features = ["alloc", "async-await"] }
+serde_json = "1"
+tokio-util = "0.7"
 
 # Feature-unification trick: gives subduction_websocket the
 # async_tungstenite::tokio module without any TLS backend; the server only
