@@ -9,11 +9,14 @@ pub fn load_or_create_seed(path: &Path) -> io::Result<[u8; 32]> {
         let bytes = hex::decode(contents.trim())
             .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
         return bytes.try_into().map_err(|_| {
-            io::Error::new(io::ErrorKind::InvalidData, "key file must be 32 bytes of hex")
+            io::Error::new(
+                io::ErrorKind::InvalidData,
+                "key file must be 32 bytes of hex",
+            )
         });
     }
     let mut seed = [0u8; 32];
-    getrandom::getrandom(&mut seed).map_err(io::Error::other)?;
+    getrandom::getrandom(&mut seed).map_err(|e| io::Error::other(e.to_string()))?;
     fs::write(path, hex::encode(seed))?;
     #[cfg(unix)]
     {

@@ -34,6 +34,23 @@ function show(id: string, text: string, ok?: boolean) {
   if (ok !== undefined) el.className = ok ? "ok" : "bad";
 }
 
+function configuredSubductionEndpoints(config: PatchworkConfig): string[] {
+  const endpoints = config.subductionEndpoints?.length
+    ? config.subductionEndpoints
+    : [config.publicEndpoint ?? DEFAULT_ENDPOINT];
+  const withLocal = [...endpoints];
+  if (config.localWsPort) {
+    withLocal.push(`ws://127.0.0.1:${config.localWsPort}`);
+  }
+  return [...new Set(withLocal)];
+}
+
+function notifyNativeReady(error?: unknown) {
+  window.webkit?.messageHandlers?.patchworkReady?.postMessage(
+    error ? { error: String(error) } : { ok: true },
+  );
+}
+
 async function boot() {
   const config: PatchworkConfig = window.__patchwork_CONFIG ?? {};
 
@@ -48,10 +65,7 @@ async function boot() {
     ? MemorySigner.fromBytes(hexToBytes(config.signerSeedHex))
     : new MemorySigner();
 
-  const endpoints: string[] = [config.publicEndpoint ?? DEFAULT_ENDPOINT];
-  if (config.localWsPort) {
-    endpoints.push(`ws://127.0.0.1:${config.localWsPort}`);
-  }
+  const endpoints = configuredSubductionEndpoints(config);
 
   const repo = new Repo({
     storage: new IndexedDBStorageAdapter(),
@@ -120,7 +134,13 @@ async function boot() {
   return repo;
 }
 
-window.patchworkReady = boot().catch((error) => {
-  show("repo-state", String(error), false);
-  throw error;
-});
+window.patchworkReady = boot()
+  .then((repo) => {
+    notifyNativeReady();
+    return repo;
+  })
+  .catch((error) => {
+    show("repo-state", String(error), false);
+    notifyNativeReady(error);
+    throw error;
+  });

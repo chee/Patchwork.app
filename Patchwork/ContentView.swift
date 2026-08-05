@@ -68,35 +68,75 @@ struct PatchworkWebView: UIViewRepresentable {
 
 struct PeerSheet: View {
     @State private var model = AppModel.shared
+    @State private var newEndpoint = ""
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         NavigationStack {
             List {
-                Button("Copy P2P Code") {
-                    #if os(macOS)
-                    NSPasteboard.general.clearContents()
-                    NSPasteboard.general.setString(model.server.irohNodeId ?? "", forType: .string)
-                    #else
-                    UIPasteboard.general.string = model.server.irohNodeId
-                    #endif
-                }
-                Button("Add Peer from Clipboard") {
-                    #if os(macOS)
-                    guard let nodeId = NSPasteboard.general.string(forType: .string)?
-                        .trimmingCharacters(in: .whitespacesAndNewlines), !nodeId.isEmpty else { return }
-                    #else
-                    guard let nodeId = UIPasteboard.general.string?
-                        .trimmingCharacters(in: .whitespacesAndNewlines), !nodeId.isEmpty else { return }
-                    #endif
-                    do {
-                        try model.server.addFriend(nodeId)
-                    } catch {
-                        model.lastError = "add peer: \(error.localizedDescription)"
+                Section("Sync") {
+                    ForEach(model.subductionEndpoints, id: \.self) { endpoint in
+                        HStack {
+                            Text(endpoint)
+                                .lineLimit(1)
+                                .truncationMode(.middle)
+                            Spacer()
+                            Button("Remove") {
+                                model.removeSubductionEndpoint(endpoint)
+                            }
+                        }
+                    }
+                    HStack {
+                        TextField("ws:// or wss:// endpoint", text: $newEndpoint)
+                            #if os(iOS)
+                            .textInputAutocapitalization(.never)
+                            .keyboardType(.URL)
+                            #endif
+                        Button("Add") {
+                            do {
+                                try model.addSubductionEndpoint(newEndpoint)
+                                newEndpoint = ""
+                            } catch {
+                                model.lastError = "add endpoint: \(error.localizedDescription)"
+                            }
+                        }
+                        .disabled(newEndpoint.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    }
+                    if let url = model.server.websocketURL {
+                        Text("Local server: \(url.absoluteString)")
+                    } else {
+                        Text("Local server unavailable")
                     }
                 }
-                if !model.server.friends.isEmpty {
-                    Section("Peers") {
+
+                Section("Peer to Peer") {
+                    if let nodeId = model.server.irohNodeId {
+                        Button("Copy P2P Code") {
+                            #if os(macOS)
+                            NSPasteboard.general.clearContents()
+                            NSPasteboard.general.setString(nodeId, forType: .string)
+                            #else
+                            UIPasteboard.general.string = nodeId
+                            #endif
+                        }
+                        Button("Add Peer from Clipboard") {
+                            #if os(macOS)
+                            guard let nodeId = NSPasteboard.general.string(forType: .string)?
+                                .trimmingCharacters(in: .whitespacesAndNewlines), !nodeId.isEmpty else { return }
+                            #else
+                            guard let nodeId = UIPasteboard.general.string?
+                                .trimmingCharacters(in: .whitespacesAndNewlines), !nodeId.isEmpty else { return }
+                            #endif
+                            do {
+                                try model.server.addFriend(nodeId)
+                            } catch {
+                                model.lastError = "add peer: \(error.localizedDescription)"
+                            }
+                        }
+                    } else {
+                        Text("Direct P2P unavailable; syncing can still use configured servers and local loopback.")
+                    }
+                    if !model.server.friends.isEmpty {
                         ForEach(model.server.friends, id: \.self) { friend in
                             Text("\(friend.prefix(10))…")
                         }

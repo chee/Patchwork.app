@@ -1,18 +1,12 @@
-//
-//  PatchworkTests.swift
-//  PatchworkTests
-//
-//  Created by chee on 2026-07-31.
-//
-
 import Testing
+@testable import Patchwork
 
 struct PatchworkTests {
-
-    @Test func example() async throws {
-        // Write your test here and use APIs like `#expect(...)` to check expected conditions.
-        // Swift Testing Documentation
-        // https://developer.apple.com/documentation/testing
+    @Test func validatesSubductionEndpointURLs() {
+        #expect(AppModel.isValidSubductionEndpoint("wss://subduction.sync.inkandswitch.com"))
+        #expect(AppModel.isValidSubductionEndpoint("ws://127.0.0.1:43217"))
+        #expect(!AppModel.isValidSubductionEndpoint("https://subduction.sync.inkandswitch.com"))
+        #expect(!AppModel.isValidSubductionEndpoint("ws://"))
+        #expect(!AppModel.isValidSubductionEndpoint(""))
     }
-
 }

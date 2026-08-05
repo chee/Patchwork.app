@@ -48,9 +48,6 @@ use handler::ServerHandler;
 use transport::UnifiedTransport;
 
 const HANDSHAKE_MAX_DRIFT: Duration = Duration::from_secs(600);
-// Friends run the same app, so their discovery id is their local websocket
-// host string. Dialing assumes the well-known port.
-const PREFERRED_WS_PORT: u16 = 43217;
 
 pub(crate) type Conn = MessageTransport<UnifiedTransport>;
 type Node = Arc<
@@ -71,13 +68,13 @@ type Node = Arc<
 struct Running {
     runtime: tokio::runtime::Runtime,
     node: Node,
-    endpoint: iroh::Endpoint,
+    endpoint: Option<iroh::Endpoint>,
     signer: MemorySigner,
     cancel: CancellationToken,
     data_dir: PathBuf,
     port: u16,
     peer_id: String,
-    iroh_node_id: String,
+    iroh_node_id: Option<String>,
 }
 
 static SERVER: Mutex<Option<Running>> = Mutex::new(None);
@@ -124,18 +121,23 @@ pub fn server_start(data_dir: String, port: u16) -> Result<u16, ServerError> {
     let (bound_port, node, endpoint) = runtime.block_on(start_node(
         &data_dir,
         port,
+        &seed,
         signer.clone(),
         peer_id,
         cancel.clone(),
     ))?;
-    let iroh_node_id = endpoint.addr().id.to_string();
+    let iroh_node_id = endpoint
+        .as_ref()
+        .map(|endpoint| endpoint.addr().id.to_string());
 
-    for saved in load_peers(&data_dir) {
-        if let Ok(public_key) = saved.parse::<iroh::PublicKey>() {
-            let endpoint = endpoint.clone();
-            let node = node.clone();
-            let signer = signer.clone();
-            runtime.spawn(dial_iroh_peer(endpoint, node, signer, public_key));
+    if let Some(endpoint) = &endpoint {
+        for saved in load_peers(&data_dir) {
+            if let Ok(public_key) = saved.parse::<iroh::PublicKey>() {
+                let endpoint = endpoint.clone();
+                let node = node.clone();
+                let signer = signer.clone();
+                runtime.spawn(dial_iroh_peer(endpoint, node, signer, public_key));
+            }
         }
     }
 
@@ -156,10 +158,11 @@ pub fn server_start(data_dir: String, port: u16) -> Result<u16, ServerError> {
 async fn start_node(
     data_dir: &Path,
     requested_port: u16,
+    seed: &[u8; 32],
     signer: MemorySigner,
     peer_id: PeerId,
     cancel: CancellationToken,
-) -> Result<(u16, Node, iroh::Endpoint), ServerError> {
+) -> Result<(u16, Node, Option<iroh::Endpoint>), ServerError> {
     let address: SocketAddr = ([127, 0, 0, 1], requested_port).into();
     let listener = TcpListener::bind(address).await.map_err(fail)?;
     let bound_port = listener.local_addr().map_err(fail)?.port();
@@ -217,11 +220,17 @@ async fn start_node(
         });
     }
 
+    // The same key subduction signs with, so the iroh node id friends dial is
+    // also the peer id their handshake addresses, and it survives a restart.
     let endpoint = iroh::Endpoint::builder(presets::N0)
+        .secret_key(iroh::SecretKey::from_bytes(seed))
         .alpns(vec![subduction_iroh::ALPN.to_vec()])
         .bind()
-        .await
-        .map_err(fail)?;
+        .await;
+
+    let Ok(endpoint) = endpoint else {
+        return Ok((bound_port, node, None));
+    };
 
     {
         let node = node.clone();
@@ -257,7 +266,7 @@ async fn start_node(
         });
     }
 
-    Ok((bound_port, node, endpoint))
+    Ok((bound_port, node, Some(endpoint)))
 }
 
 async fn handle_websocket(
@@ -325,8 +334,9 @@ async fn dial_iroh_peer(
     signer: MemorySigner,
     public_key: iroh::PublicKey,
 ) {
-    let service_name = format!("127.0.0.1:{PREFERRED_WS_PORT}");
-    let audience = Audience::discover(service_name.as_bytes());
+    // A node id is an ed25519 public key and so is a peer id, so the code we
+    // dialed is who we expect to answer. Every responder accepts its own.
+    let audience = Audience::known(PeerId::new(*public_key.as_bytes()));
     let addr = EndpointAddr::new(public_key);
     let Ok(result) = subduction_iroh::client::connect(&endpoint, addr, &signer, audience).await
     else {
@@ -339,7 +349,8 @@ async fn dial_iroh_peer(
         .authenticated
         .map(|c| MessageTransport::new(UnifiedTransport::Iroh(c)));
     if node.add_connection(auth).await.is_ok() {
-        node.full_sync_with_peer(&remote, true, CallTimeout::Default).await;
+        node.full_sync_with_peer(&remote, true, CallTimeout::Default)
+            .await;
     }
 }
 
@@ -376,7 +387,11 @@ pub fn server_port() -> Option<u16> {
 
 #[uniffi::export]
 pub fn server_peer_id() -> Option<String> {
-    SERVER.lock().unwrap().as_ref().map(|running| running.peer_id.clone())
+    SERVER
+        .lock()
+        .unwrap()
+        .as_ref()
+        .map(|running| running.peer_id.clone())
 }
 
 /// The iroh node id friends dial to sync with this server.
@@ -386,7 +401,7 @@ pub fn server_iroh_node_id() -> Option<String> {
         .lock()
         .unwrap()
         .as_ref()
-        .map(|running| running.iroh_node_id.clone())
+        .and_then(|running| running.iroh_node_id.clone())
 }
 
 /// Saved friend node ids.
@@ -413,11 +428,13 @@ pub fn server_add_iroh_peer(node_id: String) -> Result<(), ServerError> {
         save_peers(&running.data_dir, &peers);
     }
 
-    running.runtime.spawn(dial_iroh_peer(
-        running.endpoint.clone(),
-        running.node.clone(),
-        running.signer.clone(),
-        public_key,
-    ));
+    if let Some(endpoint) = &running.endpoint {
+        running.runtime.spawn(dial_iroh_peer(
+            endpoint.clone(),
+            running.node.clone(),
+            running.signer.clone(),
+            public_key,
+        ));
+    }
     Ok(())
 }

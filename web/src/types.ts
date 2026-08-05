@@ -17,6 +17,7 @@ export type FolderDoc = {
 
 export type PatchworkConfig = {
   publicEndpoint?: string;
+  subductionEndpoints?: string[];
   localWsPort?: number;
   signerSeedHex?: string;
   accountUrl?: string;
@@ -32,6 +33,13 @@ declare global {
     Automerge: unknown;
     AutomergeRepo: unknown;
     __patchworkOpenSettings?: () => void;
+    webkit?: {
+      messageHandlers?: {
+        patchworkReady?: {
+          postMessage: (message: unknown) => void;
+        };
+      };
+    };
     __patchworkResolve?: (path: string) => Promise<{
       status: number;
       mimeType: string;

@@ -10,7 +10,7 @@ use sedimentree_core::{depth::CountLeadingZeroBytes, id::SedimentreeId};
 use subduction_core::{
     authenticated::Authenticated,
     connection::message::SyncMessage,
-    handler::{Handler, sync::SyncHandler},
+    handler::{sync::SyncHandler, Handler},
     peer::id::PeerId,
     policy::open::OpenPolicy,
     remote_heads::{RemoteHeads, RemoteHeadsNotifier},
@@ -22,7 +22,7 @@ use subduction_ephemeral::{
 use subduction_redb_storage::RedbStorage;
 use subduction_websocket::tokio::{TokioSpawn, TrackedTokioSpawn};
 
-use crate::{Conn, wire::WireMessage};
+use crate::{wire::WireMessage, Conn};
 
 pub type ServerSyncHandler = Arc<
     SyncHandler<Sendable, RedbStorage, Conn, OpenPolicy, CountLeadingZeroBytes, TrackedTokioSpawn>,

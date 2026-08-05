@@ -12,6 +12,7 @@ import { resolvePath } from "@inkandswitch/patchwork-filesystem";
 const RESOLVE_TIMEOUT_MS = 20_000;
 
 type ResolveResult = { status: number; mimeType: string; base64: string };
+type CacheEntry = { mimeType: string; bytes: Uint8Array };
 
 function toBase64(bytes: Uint8Array): string {
   let binary = "";
@@ -57,6 +58,54 @@ function waitForHeads(
   });
 }
 
+// IndexedDB cache for head-pinned (immutable) resolved content.
+const CACHE_DB = "patchwork-resolve-cache";
+const CACHE_STORE = "v1";
+
+let _db: Promise<IDBDatabase> | undefined;
+
+function resolveDB(): Promise<IDBDatabase> {
+  return (_db ??= new Promise<IDBDatabase>((resolve, reject) => {
+    const req = indexedDB.open(CACHE_DB, 1);
+    req.onupgradeneeded = () => req.result.createObjectStore(CACHE_STORE);
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  }).catch((e) => {
+    _db = undefined;
+    throw e;
+  }));
+}
+
+function cacheGet(key: string): Promise<CacheEntry | undefined> {
+  return resolveDB()
+    .then(
+      (d) =>
+        new Promise<CacheEntry | undefined>((resolve) => {
+          const req = d
+            .transaction(CACHE_STORE, "readonly")
+            .objectStore(CACHE_STORE)
+            .get(key);
+          req.onsuccess = () => resolve(req.result as CacheEntry | undefined);
+          req.onerror = () => resolve(undefined);
+        }),
+    )
+    .catch(() => undefined);
+}
+
+function cachePut(key: string, entry: CacheEntry): void {
+  void resolveDB()
+    .then(
+      (d) =>
+        new Promise<void>((resolve) => {
+          const tx = d.transaction(CACHE_STORE, "readwrite");
+          tx.objectStore(CACHE_STORE).put(entry, key);
+          tx.oncomplete = () => resolve();
+          tx.onerror = () => resolve();
+        }),
+    )
+    .catch(() => {});
+}
+
 // The JS half of PatchworkSchemeHandler: patchwork's resolveAutomergeUrl with the
 // service-worker/SharedWorker handoff collapsed into one native round trip.
 // `raw` is the URL path after patchwork://app/ — an encoded automerge: URL first,
@@ -74,6 +123,20 @@ export function installResolver(repo: Repo) {
 
       let { heads, hexHeads, documentId } =
         parseAutomergeUrl(maybeAutomergeUrl);
+
+      // Head-pinned URLs are content-addressed — safe to cache indefinitely.
+      const isPinned = !!heads && heads.length > 0;
+      if (isPinned) {
+        const cached = await cacheGet(raw);
+        if (cached) {
+          return {
+            status: 200,
+            mimeType: cached.mimeType,
+            base64: toBase64(cached.bytes),
+          };
+        }
+      }
+
       const baseHandle = await repo.find(stringifyAutomergeUrl({ documentId }));
 
       if (!heads) {
@@ -104,6 +167,11 @@ export function installResolver(repo: Repo) {
         resolved.content instanceof Uint8Array
           ? resolved.content
           : new TextEncoder().encode(String(resolved.content));
+
+      if (isPinned) {
+        cachePut(raw, { mimeType: resolved.type, bytes });
+      }
+
       return { status: 200, mimeType: resolved.type, base64: toBase64(bytes) };
     } catch (error) {
       return text(500, String(error));

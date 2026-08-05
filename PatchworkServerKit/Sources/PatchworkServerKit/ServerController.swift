@@ -45,7 +45,7 @@ public final class ServerController {
             peerId = serverPeerId()
             irohNodeId = serverIrohNodeId()
             friends = serverIrohPeers()
-            writeServerInfo(to: dir, port: bound)
+            try writeServerInfo(to: dir, port: bound)
             bonjour.start(port: bound)
         } catch {
             lastError = String(describing: error)
@@ -66,7 +66,7 @@ public final class ServerController {
         friends = serverIrohPeers()
     }
 
-    private func writeServerInfo(to dir: URL, port: UInt16) {
+    private func writeServerInfo(to dir: URL, port: UInt16) throws {
         let info: [String: Any] = [
             "port": Int(port),
             "url": "ws://127.0.0.1:\(port)",
@@ -75,8 +75,7 @@ public final class ServerController {
             "serviceName": "127.0.0.1:\(port)",
             "pid": Int(ProcessInfo.processInfo.processIdentifier),
         ]
-        if let data = try? JSONSerialization.data(withJSONObject: info, options: [.prettyPrinted, .sortedKeys]) {
-            try? data.write(to: dir.appendingPathComponent("server.json"))
-        }
+        let data = try JSONSerialization.data(withJSONObject: info, options: [.prettyPrinted, .sortedKeys])
+        try data.write(to: dir.appendingPathComponent("server.json"))
     }
 }

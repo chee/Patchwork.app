@@ -11,9 +11,9 @@ use sedimentree_core::{
     id::SedimentreeId,
 };
 use subduction_core::connection::message::{
-    BatchSyncResponse, MESSAGE_SCHEMA, SyncMessage, TryAsBatchSyncResponse, TryAsSubscribeRequest,
+    BatchSyncResponse, SyncMessage, TryAsBatchSyncResponse, TryAsSubscribeRequest, MESSAGE_SCHEMA,
 };
-use subduction_ephemeral::message::{EPHEMERAL_SCHEMA, EphemeralMessage};
+use subduction_ephemeral::message::{EphemeralMessage, EPHEMERAL_SCHEMA};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum WireMessage {
@@ -81,9 +81,7 @@ impl Decode for WireMessage {
                 })?;
 
         match schema {
-            MESSAGE_SCHEMA => {
-                SyncMessage::try_decode(buf).map(|m| WireMessage::Sync(Box::new(m)))
-            }
+            MESSAGE_SCHEMA => SyncMessage::try_decode(buf).map(|m| WireMessage::Sync(Box::new(m))),
             EPHEMERAL_SCHEMA => EphemeralMessage::try_decode(buf).map(WireMessage::Ephemeral),
             _ => Err(InvalidSchema {
                 expected: MESSAGE_SCHEMA,

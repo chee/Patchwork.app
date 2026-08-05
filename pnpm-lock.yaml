@@ -9,14 +9,14 @@ importers:
   .:
     dependencies:
       '@inkandswitch/patchwork-pkg-base':
-        specifier: 0.0.27
-        version: 0.0.27
+        specifier: 0.0.35
+        version: 0.0.35
 
 packages:
 
-  '@inkandswitch/patchwork-pkg-base@0.0.27':
-    resolution: {integrity: sha512-213GtBgBMpwKnRlN6BAZc9UwYWDWmpqbXb0EbEy2v/MRead/TvPBistd07CsXJjsXhUW52AodM1yyVbbsY+oNA==}
+  '@inkandswitch/patchwork-pkg-base@0.0.35':
+    resolution: {integrity: sha512-gnJqrTzubd2FOPMMgSb/Yw7prgny1KJ2TgfW28nVo55u5j0+1hqsJOBytgX6a9sJv03mjRgK0Ryn2apKV6uXjg==}
 
 snapshots:
 
-  '@inkandswitch/patchwork-pkg-base@0.0.27': {}
+  '@inkandswitch/patchwork-pkg-base@0.0.35': {}

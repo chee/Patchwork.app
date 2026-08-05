@@ -114,16 +114,18 @@ export async function mountFrame(
       return createDocOfDatatype2(datatype as never, repo, init, undefined);
     },
     open(url: AutomergeUrl, options: OpenOptions = {}) {
-      view.dispatchEvent(
-        new CustomEvent("patchwork:open-document", {
-          detail: {
-            url,
-            toolId: options.tool,
-            type: options.type,
-            title: options.title,
-          },
-        }),
-      );
+      const dispatch = () =>
+        view.dispatchEvent(
+          new CustomEvent("patchwork:open-document", {
+            detail: {
+              url,
+              toolId: options.tool,
+              type: options.type,
+              title: options.title,
+            },
+          }),
+        );
+      void watcher.doneLoading.then(dispatch, dispatch);
     },
   };
   return true;

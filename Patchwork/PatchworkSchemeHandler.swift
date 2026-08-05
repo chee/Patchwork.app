@@ -79,7 +79,7 @@ final class PatchworkSchemeHandler: NSObject, WKURLSchemeHandler {
               accountUrl.hasPrefix("automerge:") else {
             return respond(400, "url parameter must be an automerge: url")
         }
-        Keychain.write("accountUrl", accountUrl)
+        try Keychain.write("accountUrl", accountUrl)
         return respond(200, "ok")
     }
 
@@ -93,8 +93,12 @@ final class PatchworkSchemeHandler: NSObject, WKURLSchemeHandler {
             guard let base = Bundle.main.url(forResource: "PatchworkWeb", withExtension: "bundle") else {
                 throw URLError(.fileDoesNotExist)
             }
-            let fileURL = base.appendingPathComponent(relative)
-            guard fileURL.path.hasPrefix(base.path),
+            let baseURL = base.standardizedFileURL.resolvingSymlinksInPath()
+            let fileURL = baseURL.appendingPathComponent(relative)
+                .standardizedFileURL
+                .resolvingSymlinksInPath()
+            let basePath = baseURL.path.hasSuffix("/") ? baseURL.path : baseURL.path + "/"
+            guard fileURL.path == baseURL.path || fileURL.path.hasPrefix(basePath),
                   FileManager.default.fileExists(atPath: fileURL.path) else {
                 throw URLError(.fileDoesNotExist)
             }
